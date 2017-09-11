@@ -1,17 +1,12 @@
 # -*- coding: utf-8 -*-.
-
 """
 pygsheets.datarange
 ~~~~~~~~~~~~~~~~~~~
-
 This module contains DataRange class for storing/manuplating a range of data in spreadsheet. This classs can
 be used for group operations, eg changing format of ll cells in a given range. This can also represent, named ranges
 protetced ranegs, banned ranges etc.
-
 """
-
 import warnings
-
 from .utils import format_addr
 from .exceptions import InvalidArgumentValue, CellNotFound
 
@@ -19,7 +14,6 @@ from .exceptions import InvalidArgumentValue, CellNotFound
 class DataRange(object):
     """
     DataRange specifes a range of cells in the sheet
-
     :param start: top left cell adress
     :param end: bottom right cell adress
     :param worksheet: worksheet where this range belongs
@@ -27,25 +21,24 @@ class DataRange(object):
     :param name_id: id of named range
     :param namedjson: json representing the NamedRange from api
     """
+
     def __init__(self, start=None, end=None, worksheet=None, name='', data=None, name_id=None, namedjson=None):
         self._worksheet = worksheet
         if namedjson:
-            start = (namedjson['range'].get('startRowIndex', 0)+1, namedjson['range'].get('startColumnIndex', 0)+1)
+            start = (namedjson['range'].get('startRowIndex', 0) + 1, namedjson['range'].get('startColumnIndex', 0) + 1)
             # @TODO this wont scale if the sheet size is changed
             end = (namedjson['range'].get('endRowIndex', self._worksheet.cols),
                    namedjson['range'].get('endColumnIndex', self._worksheet.rows))
             name_id = namedjson['namedRangeId']
-        data = [[]]
+        # data = [[]]
         self._start_addr = format_addr(start, 'tuple')
         self._end_addr = format_addr(end, 'tuple')
         if data:
             if len(data) != end[0] - start[0] + 1 or len(data[0]) != end[1] - start[1] + 1:
                 self._data = data
         self._linked = True
-
         self._name_id = name_id
         self._name = name
-
         self._protected = False
         self.protected_properties = ProtectedRange()
         self._banned = False
@@ -124,7 +117,6 @@ class DataRange(object):
 
     def link(self, update=True):
         """link the dstarange so that all propertis are synced right after setting them
-
         :param update: if the range should be synced to cloud on link
         """
         self._linked = True
@@ -139,9 +131,7 @@ class DataRange(object):
     def fetch(self, only_data=True):
         """
         update the range data/ properties from cloud
-
         :param only_data: fetch only data
-
         """
         self._data = self._worksheet.get_values(self._start_addr, self._end_addr, include_all=True, returnas='cells')
         if not only_data:
@@ -150,24 +140,105 @@ class DataRange(object):
     def applay_format(self, cell):
         """
         Change format of all cells in the range
-
         :param cell: a model :class: Cell whose format will be applied to all cells
-
         """
         request = {"repeatCell": {
             "range": self._get_gridrange(),
             "cell": cell.get_json(),
             "fields": "*"
-            }
         }
+        }
+        self._worksheet.client.sh_batch_update(self._worksheet.spreadsheet.id, request, None, False)
+
+    def merge_cells(self):
+        """
+        Change format of all cells in the range
+        :param cell: a model :class: Cell whose format will be applied to all cells
+        """
+        request = [{
+            "mergeCells": {
+                "range": self._get_gridrange(),
+                "mergeType": "MERGE_ALL"
+            }
+        }]
+        self._worksheet.client.sh_batch_update(self._worksheet.spreadsheet.id, request, None, False)
+
+    def update_borders(self, **kwargs):
+        # top_style, top_width, top_color,
+        # bot_style, bot_width, bot_color,
+        # inner_horizontal_style, inner_horizontal_width, inner_horizontal_color,
+        # outer_horizontal_style, inner_horizontal_width, inner_horizontal_color,
+        request = [{
+            "updateBorders": {
+                "range": self._get_gridrange(),
+                "top": {
+                    "style": kwargs['top_style'] if "top_style" in kwargs else "SOLID",
+                    "width": kwargs['top_width'] if "top_width" in kwargs else 1,
+                    "color": kwargs['top_color'] if "top_color" in kwargs else {
+                        'alpha': 0,
+                        'blue': 0,
+                        'green': 0,
+                        'red': 0
+                    },
+                },
+                "bottom": {
+                    "style": kwargs['bot_style'] if "bot_style" in kwargs else "SOLID",
+                    "width": kwargs['bot_width'] if "bot_width" in kwargs else 1,
+                    "color": kwargs['bot_color'] if "bot_color" in kwargs else {
+                        'alpha': 0,
+                        'blue': 0,
+                        'green': 0,
+                        'red': 0
+                    },
+                },
+                "left": {
+                    "style": kwargs['left_style'] if "left_style" in kwargs else "SOLID",
+                    "width": kwargs['left_width'] if "left_width" in kwargs else 1,
+                    "color": kwargs['left_color'] if "left_color" in kwargs else {
+                        'alpha': 0,
+                        'blue': 0,
+                        'green': 0,
+                        'red': 0
+                    },
+                },
+                "right": {
+                    "style": kwargs['right_style'] if "right_style" in kwargs else "SOLID",
+                    "width": kwargs['right_width'] if "right_width" in kwargs else 1,
+                    "color": kwargs['right_color'] if "right_color" in kwargs else {
+                        'alpha': 0,
+                        'blue': 0,
+                        'green': 0,
+                        'red': 0
+                    },
+                },
+                "innerHorizontal": {
+                    "style": kwargs['inner_horizontal_style'] if "inner_horizontal_style" in kwargs else "SOLID",
+                    "width": kwargs['inner_horizontal_width'] if "inner_horizontal_width" in kwargs else 1,
+                    "color": kwargs['inner_horizontal_color'] if "inner_horizontal_color" in kwargs else {
+                        'alpha': 0,
+                        'blue': 0,
+                        'green': 0,
+                        'red': 0
+                    },
+                },
+                "innerVertical": {
+                    "style": kwargs['inner_vertical_style'] if "inner_vertical_style" in kwargs else "SOLID",
+                    "width": kwargs['inner_vertical_width'] if "inner_vertical_width" in kwargs else 1,
+                    "color": kwargs['inner_vertical_color'] if "inner_vertical_color" in kwargs else {
+                        'alpha': 0,
+                        'blue': 0,
+                        'green': 0,
+                        'red': 0
+                    },
+                }
+            }
+        }]
         self._worksheet.client.sh_batch_update(self._worksheet.spreadsheet.id, request, None, False)
 
     def update_values(self, values=None):
         """
         Update the values of the cells in this range
-
         :param values: values as matrix
-
         """
         if values and self._linked:
             self._worksheet.update_cells(crange=self.range, values=values)
@@ -183,22 +254,23 @@ class DataRange(object):
         """update the named properties"""
         if self._name_id == '':
             return False
-        request = {'updateNamedRange':{
-          "namedRange": {
-              "namedRangeId": self._name_id,
-              "name": self._name,
-              "range": self._get_gridrange(),
-          },
-          "fields": '*',
+        request = {'updateNamedRange': {
+            "namedRange": {
+                "namedRangeId": self._name_id,
+                "name": self._name,
+                "range": self._get_gridrange(),
+            },
+            "fields": '*',
         }}
-        self._worksheet.client.sh_batch_update(self._worksheet.spreadsheet.id, request, batch=self._worksheet.spreadsheet.batch_mode)
+        self._worksheet.client.sh_batch_update(self._worksheet.spreadsheet.id, request,
+                                               batch=self._worksheet.spreadsheet.batch_mode)
 
     def _get_gridrange(self):
         return {
             "sheetId": self._worksheet.id,
-            "startRowIndex": self._start_addr[0]-1,
+            "startRowIndex": self._start_addr[0] - 1,
             "endRowIndex": self._end_addr[0],
-            "startColumnIndex": self._start_addr[1]-1,
+            "startColumnIndex": self._start_addr[1] - 1,
             "endColumnIndex": self._end_addr[1],
         }
 
@@ -219,12 +291,10 @@ class DataRange(object):
         if self.worksheet:
             range_str = str(self.range)
         protected_str = " protected" if self._protected else ""
-
         return '<%s %s %s%s>' % (self.__class__.__name__, str(self._name), range_str, protected_str)
 
 
 class ProtectedRange(object):
-
     def __init__(self):
         self._protected_id = None
         self.description = ''
